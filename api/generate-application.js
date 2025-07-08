@@ -1,3 +1,6 @@
+import ModelClient, { isUnexpected } from "@azure-rest/ai-inference";
+import { AzureKeyCredential } from "@azure/core-auth";
+
 export default async function handler(req, res) {
   console.log('🚀 API Function Called');
   console.log('📡 Method:', req.method);
@@ -23,13 +26,13 @@ export default async function handler(req, res) {
     const { resume, jobDescription, type } = req.body;
     console.log('📋 Request data:', { resumeLength: resume?.length, jobDescLength: jobDescription?.length, type });
 
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
-    console.log('🔑 API Key exists:', !!apiKey);
-    console.log('🔑 API Key prefix:', apiKey ? apiKey.substring(0, 10) + '...' : 'NONE');
+    const githubToken = process.env.GITHUB_TOKEN;
+    console.log('🔑 GitHub Token exists:', !!githubToken);
+    console.log('🔑 GitHub Token prefix:', githubToken ? githubToken.substring(0, 10) + '...' : 'NONE');
 
-    if (!apiKey) {
-      console.log('❌ No API key found');
-      return res.status(500).json({ message: 'API key not configured' });
+    if (!githubToken) {
+      console.log('❌ No GitHub token found');
+      return res.status(500).json({ message: 'GitHub token not configured' });
     }
 
     if (!resume || !jobDescription) {
@@ -89,51 +92,53 @@ IMPORTANT: Write ONLY the bullet points. Do not include any thinking process or 
       return res.status(400).json({ message: 'Invalid type. Use "cover-letter" or "bullets"' });
     }
 
-    console.log('🌐 Sending request to DeepSeek via Hugging Face Router');
+    console.log('🌐 Sending request to GitHub AI');
 
-    const response = await fetch('https://router.huggingface.co/fireworks-ai/inference/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    // Initialize GitHub AI client
+    const endpoint = "https://models.github.ai/inference";
+    const model = "openai/gpt-4.1"; // You can change this to other available models
+    
+    const client = ModelClient(
+      endpoint,
+      new AzureKeyCredential(githubToken),
+    );
+
+    const response = await client.path("/chat/completions").post({
+      body: {
         messages: [
           {
             role: "user",
             content: prompt
           }
         ],
-        model: "accounts/fireworks/models/deepseek-r1",
-        stream: false,
+        model: model,
+        temperature: 0.7,
         max_tokens: type === 'cover-letter' ? 1200 : 600,
-        temperature: 0.7
-      })
+        top_p: 1.0
+      }
     });
 
     console.log('📬 Response status:', response.status);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('💥 DeepSeek API error:', response.status, errorText);
-
-      if (response.status === 503) {
+    if (isUnexpected(response)) {
+      console.error('💥 GitHub AI API error:', response.body.error);
+      
+      if (response.status === '503') {
         return res.status(503).json({
           message: 'AI model is loading, please try again in a few moments'
         });
       }
 
-      return res.status(response.status).json({
+      return res.status(parseInt(response.status) || 500).json({
         message: 'AI generation failed',
-        error: errorText
+        error: response.body.error
       });
     }
 
-    const data = await response.json();
-    console.log('📦 Raw AI Response:', data);
+    console.log('📦 Raw AI Response:', response.body);
 
-    // DeepSeek returns response in OpenAI format
-    const content = data.choices?.[0]?.message?.content || '';
+    // GitHub AI returns response in OpenAI format
+    const content = response.body.choices?.[0]?.message?.content || '';
     
     if (!content) {
       console.error('❌ No content in response');
@@ -154,29 +159,23 @@ IMPORTANT: Write ONLY the bullet points. Do not include any thinking process or 
         console.log('⚠️ Cover letter appears incomplete, regenerating with higher token limit');
         
         // Try again with higher token limit
-        const retryResponse = await fetch('https://router.huggingface.co/fireworks-ai/inference/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        const retryResponse = await client.path("/chat/completions").post({
+          body: {
             messages: [
               {
                 role: "user",
                 content: prompt + "\n\nIMPORTANT: Make sure to complete the entire cover letter with a proper closing and signature."
               }
             ],
-            model: "accounts/fireworks/models/deepseek-r1",
-            stream: false,
+            model: model,
+            temperature: 0.7,
             max_tokens: 1500,
-            temperature: 0.7
-          })
+            top_p: 1.0
+          }
         });
         
-        if (retryResponse.ok) {
-          const retryData = await retryResponse.json();
-          const retryContent = retryData.choices?.[0]?.message?.content || '';
+        if (!isUnexpected(retryResponse)) {
+          const retryContent = retryResponse.body.choices?.[0]?.message?.content || '';
           if (retryContent) {
             result = cleanCoverLetterContent(retryContent.trim());
           }

@@ -147,7 +147,7 @@ function App() {
   return (
     <>
       <Helmet>
-        <title>AI Job Application Tailor - Customize Your Applications Instantly</title>
+        <title>Ryan's Job Application Tailor</title>
         <meta name="description" content="Transform your job applications with AI. Upload your resume, paste a job description, and get a tailored cover letter and CV bullet points instantly." />
       </Helmet>
       
@@ -160,11 +160,13 @@ function App() {
             className="text-center mb-8"
           >
             <h1 className="text-4xl lg:text-5xl font-bold gradient-text mb-4">
-              AI Job Application Tailor
+              Ryan's AI Job Application Tailor
             </h1>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Transform your job applications with AI. Upload your resume, paste a job description, 
-              and get a tailored cover letter and CV bullet points instantly.
+              Welcome to my AI Job Application Tailor! <br />
+              Fast-track your job applications with AI. Upload your resume, paste a job description, 
+              and get a tailored cover letter and CV bullet points instantly. <br />
+              <em>*The AI model is currently limited daily.</em>
             </p>
           </motion.div>
 
