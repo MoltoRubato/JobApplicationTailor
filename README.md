@@ -1,6 +1,7 @@
 # Ryan's AI Job Application Tailor
 
 A smart web application that helps job seekers create tailored cover letters and CV bullet points using AI. Simply upload your resume, paste a job description, and get personalized application materials in seconds.
+I built this as a way to experiment with AI APIs and play around with wrapping them into a real project.
 
 ## Features
 
